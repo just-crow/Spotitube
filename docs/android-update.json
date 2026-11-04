@@ -1,6 +1,6 @@
 {
-  "url": "https://github.com/just-crow/Spotitube/releases/download/v0.13/app-debug.apk",
-  "sha256": "9bd5bcbacf8feb714d4af11b3ff6071c3b9628e1ea191c8926a1ed8d0cc39099",
-  "versionName": "0.13",
-  "versionCode": 13
+  "sha256": "582f1c52780addef144e8ad3b2788ebd1d4ce57754ce44bafa3cf6ae055de90f",
+  "versionCode": 14,
+  "versionName": "0.14",
+  "url": "https://github.com/just-crow/Spotitube/releases/download/v0.14/app-debug.apk"
 }
