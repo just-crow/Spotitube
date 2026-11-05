@@ -21,9 +21,16 @@ targets:
       - path: Spotitube
         excludes:
           - Web
-    resources:
-      - path: Spotitube/Web
-        type: folder
+    preBuildScripts:
+      - name: Copy web bundle
+        script: |
+          set -eu
+          SRC="${SRCROOT}/Spotitube/Web"
+          DST="${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Web"
+          rm -rf "$DST"
+          mkdir -p "$DST"
+          cp -R "$SRC/." "$DST/"
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: YouTubeKit
     info:
