@@ -1,0 +1,75 @@
+name: Spotitube
+options:
+  bundleIdPrefix: com.spotitube
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    CURRENT_PROJECT_VERSION: 35
+    MARKETING_VERSION: "0.35"
+    CODE_SIGNING_ALLOWED: NO
+packages:
+  YouTubeKit:
+    url: https://github.com/alexeichhorn/YouTubeKit.git
+    revision: 7f75a2299dc329c0b7855afb25d47663a02855cb
+targets:
+  Spotitube:
+    type: application
+    platform: iOS
+    sources:
+      - path: Spotitube
+        excludes:
+          - Web
+    resources:
+      - path: Spotitube/Web
+        type: folder
+    dependencies:
+      - package: YouTubeKit
+    info:
+      path: Info.plist
+      properties:
+        CFBundleDisplayName: Spotitube
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSupportsIndirectInputEvents: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.spotitube.ios
+        TARGETED_DEVICE_FAMILY: "1,2"
+  SpotitubeTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources: [Tests]
+    dependencies:
+      - target: Spotitube
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+  SpotitubeUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [UITests]
+    dependencies:
+      - target: Spotitube
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+schemes:
+  Spotitube:
+    build:
+      targets:
+        Spotitube: all
+    test:
+      targets:
+        - SpotitubeTests
+        - SpotitubeUITests

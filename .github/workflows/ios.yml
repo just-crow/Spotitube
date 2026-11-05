@@ -1,0 +1,81 @@
+name: iOS
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+
+      - name: Sync web assets
+        run: |
+          chmod +x scripts/sync-ios-web.sh
+          ./scripts/sync-ios-web.sh
+
+      - name: Install XcodeGen
+        run: brew list xcodegen >/dev/null 2>&1 || brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: ios
+        run: xcodegen generate
+
+      - name: Build for iOS Simulator
+        working-directory: ios
+        run: |
+          xcodebuild \
+            -scheme Spotitube \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Pick a simulator
+        id: sim
+        run: |
+          SIM=$(xcrun simctl list devices available -j | node -e "const d=JSON.parse(require('fs').readFileSync(0,'utf8'));const all=Object.values(d.devices).flat();const p=all.find(x=>/iPhone/.test(x.name)&&x.isAvailable)||all[0];console.log(p.udid)")
+          echo "udid=$SIM" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "$SIM" || true
+
+      - name: Unit tests
+        working-directory: ios
+        run: |
+          xcodebuild test \
+            -scheme Spotitube \
+            -destination "id=${{ steps.sim.outputs.udid }}" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Install, launch and screenshot
+        run: |
+          SIM="${{ steps.sim.outputs.udid }}"
+          APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path "*Debug-iphonesimulator/Spotitube.app" -type d | head -1)
+          if [ -z "$APP" ]; then echo "App bundle not found"; exit 1; fi
+          xcrun simctl boot "$SIM" || true
+          sleep 5
+          xcrun simctl install "$SIM" "$APP"
+          xcrun simctl launch "$SIM" com.spotitube.ios
+          sleep 10
+          xcrun simctl io "$SIM" screenshot screenshot.png
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ios-screenshot
+          path: screenshot.png
+          retention-days: 14

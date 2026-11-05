@@ -5,6 +5,8 @@ android/.gradle/
 android/.kotlin/
 android/**/build/
 android/local.properties
+android/app/src/main/assets/web/
 *.apk
 *.jks
 *.keystore
+*.hprof
