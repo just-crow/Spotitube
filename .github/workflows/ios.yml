@@ -62,16 +62,24 @@ jobs:
             -destination "id=${{ steps.sim.outputs.udid }}" \
             CODE_SIGNING_ALLOWED=NO
 
-      - name: Install, launch and screenshot
+      - name: Inspect the app bundle
+        run: |
+          APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path "*Debug-iphonesimulator/Spotitube.app" -type d | head -1)
+          echo "APP=$APP"
+          ls "$APP"
+          echo "--- Web"
+          ls "$APP/Web" || echo "Web MISSING"
+          echo "--- assets"
+          ls "$APP/Web/assets" || echo "Web/assets MISSING"
+
+      - name: Console output and screenshot
         run: |
           SIM="${{ steps.sim.outputs.udid }}"
           APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path "*Debug-iphonesimulator/Spotitube.app" -type d | head -1)
-          if [ -z "$APP" ]; then echo "App bundle not found"; exit 1; fi
           xcrun simctl boot "$SIM" || true
           sleep 5
           xcrun simctl install "$SIM" "$APP"
-          xcrun simctl launch "$SIM" com.spotitube.ios
-          sleep 10
+          timeout 15 xcrun simctl launch --console-main-thread com.spotitube.ios || true
           xcrun simctl io "$SIM" screenshot screenshot.png
 
       - uses: actions/upload-artifact@v4

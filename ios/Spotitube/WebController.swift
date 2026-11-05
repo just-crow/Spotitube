@@ -37,6 +37,7 @@ final class WebController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        NSLog("SpotiWeb: viewDidLoad")
         view.backgroundColor = UIColor(red: 0x12/255, green: 0x12/255, blue: 0x12/255, alpha: 1)
 
         let contentController = WKUserContentController()
@@ -62,7 +63,12 @@ final class WebController: UIViewController {
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
         ])
 
-        if let url = URL(string: "spotitube://local/") { webView.load(URLRequest(url: url)) }
+        if let url = URL(string: "spotitube://local/") {
+            NSLog("SpotiWeb: loading %@", url.absoluteString)
+            webView.load(URLRequest(url: url))
+        } else {
+            NSLog("SpotiWeb: could not construct spotitube://local/ URL")
+        }
         stateTimer = Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.pushState() }
         }
@@ -277,6 +283,25 @@ final class WebController: UIViewController {
 // MARK: - Navigation: stay in-app; push external links to Safari
 
 extension WebController: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        NSLog("SpotiWeb: didStartProvisionalNavigation")
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        NSLog("SpotiWeb: didFinish navigation")
+        webView.evaluateJavaScript("document.title + ' | mainChars=' + (document.querySelector('main')?.innerText?.length ?? -1) + ' | readyState=' + document.readyState") { value, error in
+            NSLog("SpotiWeb: probe title=%@ error=%@", String(describing: value), String(describing: error))
+        }
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        NSLog("SpotiWeb: didFail %@", error.localizedDescription)
+    }
+
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        NSLog("SpotiWeb: didFailProvisionalNavigation %@", error.localizedDescription)
+    }
+
     func webView(_ webView: WKWebView,
                  decidePolicyFor navigationAction: WKNavigationAction,
                  preferences: WKWebpagePreferences,
@@ -327,9 +352,11 @@ final class SpotSchemeHandler: NSObject, WKURLSchemeHandler {
         let url = urlSchemeTask.request.url
         var path = url?.path ?? ""
         if path == "/" { path = "/index.html" }
+        NSLog("SpotiWeb: scheme request %@", url?.absoluteString ?? "nil")
         let allowed = path.range(of: #"^/(index\.html|assets/[A-Za-z0-9_.-]+)$"#, options: .regularExpression) != nil
         guard allowed, let root, let file = fileURL(path: path, under: root),
               let data = try? Data(contentsOf: file) else {
+            NSLog("SpotiWeb: 404 for %@ (allowed=%d root=%@)", path, allowed, root?.path ?? "nil")
             fail(urlSchemeTask, path: path, url: url)
             return
         }
