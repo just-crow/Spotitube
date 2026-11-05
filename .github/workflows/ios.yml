@@ -72,15 +72,17 @@ jobs:
           echo "--- assets"
           ls "$APP/Web/assets" || echo "Web/assets MISSING"
 
-      - name: Console output and screenshot
+      - name: Launch and capture
         run: |
           SIM="${{ steps.sim.outputs.udid }}"
           APP=$(find "$HOME/Library/Developer/Xcode/DerivedData" -path "*Debug-iphonesimulator/Spotitube.app" -type d | head -1)
           xcrun simctl boot "$SIM" || true
           sleep 5
           xcrun simctl install "$SIM" "$APP"
-          timeout 15 xcrun simctl launch --console-main-thread com.spotitube.ios || true
+          xcrun simctl launch "$SIM" com.spotitube.ios
+          sleep 12
           xcrun simctl io "$SIM" screenshot screenshot.png
+          xcrun simctl spawn "$SIM" log show --last 2m --predicate 'process == "Spotitube"' --style compact | grep -i 'SpotiWeb' || true
 
       - uses: actions/upload-artifact@v4
         with:
