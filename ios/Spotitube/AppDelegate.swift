@@ -21,10 +21,10 @@ final class AppDelegate: UIResponder, UIApplicationDelegate {
     func application(_ application: UIApplication, handleEventsForBackgroundURLSession identifier: String,
                      completionHandler: @escaping () -> Void) {
         backgroundDownloadCompletion = completionHandler
-        _ = browser?.downloads
+        _ = browser?.offline
     }
 
     func applicationWillTerminate(_ application: UIApplication) {
-        browser?.playback.stop()
+        browser?.nowPlaying.stop()
     }
 }
