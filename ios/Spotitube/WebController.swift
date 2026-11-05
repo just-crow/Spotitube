@@ -103,8 +103,8 @@ final class WebController: UIViewController {
             let request = (args["request"] as? Int) ?? Int((args["request"] as? Double) ?? 0)
             let query = (args["query"] as? String) ?? ""
             Task { @MainActor in
-                let result = try? await Catalog.search(query, musicOnly: false)
-                dispatchEvent("spotitube-search", ["request": request, "videos": result.map(videoPayload)])
+                let videos = (try? await Catalog.search(query, musicOnly: false)) ?? []
+                dispatchEvent("spotitube-search", ["request": request, "videos": videos.map(videoPayload)])
             }
         case "radio":
             let request = (args["request"] as? Int) ?? Int((args["request"] as? Double) ?? 0)
@@ -146,7 +146,11 @@ final class WebController: UIViewController {
             let url = (args["url"] as? String) ?? ""
             Task { @MainActor in
                 let result = try? await Catalog.artist(url)
-                dispatchEvent("spotitube-artist", ["request": request, "artist": result ?? NSNull()])
+                if let result {
+                    dispatchEvent("spotitube-artist", ["request": request, "artist": result])
+                } else {
+                    dispatchEvent("spotitube-artist", ["request": request, "artist": NSNull()])
+                }
             }
         case "setNormalize":
             break // not supported yet; toggle is hidden on iOS
@@ -203,7 +207,7 @@ final class WebController: UIViewController {
         }
     }
 
-    private func videoPayload(_ video: Video) -> [String: Any] {
+    nonisolated private func videoPayload(_ video: Video) -> [String: Any] {
         var output: [String: Any] = ["id": video.id,
                                      "title": video.title,
                                      "author_name": video.authorName,

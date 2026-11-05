@@ -121,7 +121,6 @@ final class PlaybackEngine {
                 guard token == self.generation else { return }
                 let item = AVPlayerItem(url: url)
                 item.preferredForwardBufferDuration = 60
-                self.observations.removeAll(where: { !$0.isValid })
                 let observation = item.observe(\.status, options: [.new]) { [weak self] item, _ in
                     Task { @MainActor in
                         guard let self, token == self.generation else { return }
