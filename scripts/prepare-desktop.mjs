@@ -6,21 +6,22 @@ import { deflateSync } from 'node:zlib';
 const root = path.resolve('desktop');
 const tools = path.join(root, 'tools');
 await fs.mkdir(tools, { recursive: true });
-const headers = { 'User-Agent': 'Spotitube-desktop-build', Accept: 'application/vnd.github+json' };
+const headers = { 'User-Agent': 'Spotitube-desktop-build' };
 async function get(url) { const response = await fetch(url, { headers }); if (!response.ok) throw new Error(`Download failed (${response.status}): ${url}`); return response; }
 let versions;
 try { versions = JSON.parse(await fs.readFile(path.join(tools, 'versions.json'), 'utf8')); } catch {}
-if (!versions || !await fs.stat(path.join(tools, 'yt-dlp.exe')).catch(() => null)) {
-  const release = await (await get('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest')).json();
-  const asset = release.assets.find(asset => asset.name === 'yt-dlp.exe');
-  const sums = await (await get(release.assets.find(asset => asset.name === 'SHA2-256SUMS').browser_download_url)).text();
+const manifest = JSON.parse(await fs.readFile(path.join(root, 'tools-manifest.json'), 'utf8'));
+const cached = await fs.readFile(path.join(tools, 'yt-dlp.exe')).catch(() => null);
+if (!versions || versions.ytDlp !== manifest.ytDlp || !cached || crypto.createHash('sha256').update(cached).digest('hex') !== manifest.ytDlpSha256) {
+  const base = `https://github.com/yt-dlp/yt-dlp/releases/download/${manifest.ytDlp}/`;
+  const sums = await (await get(base + 'SHA2-256SUMS')).text();
   const expected = sums.split('\n').find(line => /\s\*?yt-dlp\.exe\r?$/.test(line))?.split(/\s/)[0];
-  const binary = Buffer.from(await (await get(asset.browser_download_url)).arrayBuffer());
+  const binary = Buffer.from(await (await get(base + 'yt-dlp.exe')).arrayBuffer());
   const sha256 = crypto.createHash('sha256').update(binary).digest('hex');
-  if (!expected || sha256 !== expected) throw new Error('yt-dlp checksum verification failed.');
+  if (!expected || sha256 !== expected || sha256 !== manifest.ytDlpSha256) throw new Error('yt-dlp checksum verification failed.');
   await fs.writeFile(path.join(tools, 'yt-dlp.exe'), binary);
-  await fs.writeFile(path.join(tools, 'yt-dlp-LICENSE.txt'), await (await get(`https://raw.githubusercontent.com/yt-dlp/yt-dlp/${release.tag_name}/LICENSE`)).text());
-  versions = { ytDlp: release.tag_name, ytDlpSha256: sha256 };
+  await fs.writeFile(path.join(tools, 'yt-dlp-LICENSE.txt'), await (await get(`https://raw.githubusercontent.com/yt-dlp/yt-dlp/${manifest.ytDlp}/LICENSE`)).text());
+  versions = { ytDlp: manifest.ytDlp, ytDlpSha256: sha256 };
 }
 const nodeBinary = await fs.readFile(process.execPath);
 await fs.writeFile(path.join(tools, 'node.exe'), nodeBinary);

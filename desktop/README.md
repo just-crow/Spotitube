@@ -17,7 +17,7 @@ npm run desktop:dev
 npm run desktop:build
 ```
 
-Preparation downloads the official yt-dlp Windows executable and verifies its published SHA-256, copies the current Node runtime, and includes their license files. Both tools are bundled with the installer. Rebuild with an updated yt-dlp if YouTube changes extraction; remove `desktop/tools/versions.json` before preparation to select the latest official release. Builds never include `.env.local`, server OAuth secrets, or development configuration. Public `VITE_*` configuration is intentionally bundled, as in the web/Android clients.
+Preparation downloads the official yt-dlp Windows executable and verifies both its published SHA-256 and the pinned checksum in `desktop/tools-manifest.json`, copies the current Node runtime, and includes their license files. Both tools are bundled with the installer. Rebuild with an updated yt-dlp if YouTube changes extraction; update the version and verified official checksum in the manifest first. No GitHub API token is needed to build. Builds never include `.env.local`, server OAuth secrets, or development configuration. Public `VITE_*` configuration is intentionally bundled, as in the web/Android clients.
 
 `npm run desktop:test` checks queue identity, late playback responses, paused preparation, repeat, download concurrency, cancellation, retries, file validation, restart recovery, offline ranges, and duplicate prevention without accessing YouTube. `npm run typecheck` checks the shared frontend. Desktop update checking compares the installed version with published `desktop-v*` GitHub releases and offers the download page; silent automatic installation is not implemented. Windows releases do not change the Android update manifest.
 
