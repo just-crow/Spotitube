@@ -6,6 +6,6 @@ module.exports = {
   asar: true,
   win: { target: [{ target: 'nsis', arch: ['x64'] }], icon: 'desktop/icon.ico', artifactName: 'Spotitube-Setup-${version}.${ext}', signExecutable: false, verifyUpdateCodeSignature: false },
   publish: { provider: 'generic', url: 'https://raw.githubusercontent.com/just-crow/Spotitube/main/docs/desktop/', useMultipleRangeRequest: false },
-  nsis: { oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true, createDesktopShortcut: true, deleteAppDataOnUninstall: false },
+  nsis: { oneClick: false, perMachine: false, allowToChangeInstallationDirectory: true, createDesktopShortcut: true, deleteAppDataOnUninstall: false, include: 'desktop/installer.nsh' },
   npmRebuild: false,
 };
