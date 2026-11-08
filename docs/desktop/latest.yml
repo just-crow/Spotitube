@@ -1,8 +1,8 @@
-version: 1.0.3
+version: 1.0.4
 files:
-  - url: https://github.com/just-crow/Spotitube/releases/download/desktop-v1.0.3/Spotitube-Setup-1.0.3.exe
-    sha512: U6ftM9f2UAt4c8JreRNl9r9beKr7oO+raJZjzRnMUVssq5FeTc4+axmJZQ6ra7RY/0C02ttIte5tukw4P2Nlmw==
-    size: 186673885
-path: https://github.com/just-crow/Spotitube/releases/download/desktop-v1.0.3/Spotitube-Setup-1.0.3.exe
-sha512: U6ftM9f2UAt4c8JreRNl9r9beKr7oO+raJZjzRnMUVssq5FeTc4+axmJZQ6ra7RY/0C02ttIte5tukw4P2Nlmw==
-releaseDate: '2026-11-08T18:39:01.658Z'
+  - url: https://github.com/just-crow/Spotitube/releases/download/desktop-v1.0.4/Spotitube-Setup-1.0.4.exe
+    sha512: k6fz2/sdFEQ51jVB08PJ8m8WwZARFem2Q72gAJW49mIu0wPJ0+AV4Xb6LFc/9C+BlCdfSLGC1025my1GDoGiRw==
+    size: 186673964
+path: https://github.com/just-crow/Spotitube/releases/download/desktop-v1.0.4/Spotitube-Setup-1.0.4.exe
+sha512: k6fz2/sdFEQ51jVB08PJ8m8WwZARFem2Q72gAJW49mIu0wPJ0+AV4Xb6LFc/9C+BlCdfSLGC1025my1GDoGiRw==
+releaseDate: '2026-11-08T18:47:44.580Z'
