@@ -3,6 +3,7 @@ import type { NativeState } from '../types';
 type DesktopAPI = {
   invoke(method: string, args?: Record<string, unknown>): Promise<any>;
   onDownloads(listener: (jobs: any[]) => void): () => void;
+  onUpdate?(listener: (state: any) => void): () => void;
 };
 export const desktopAPI = (window as unknown as { SpotitubeDesktop?: DesktopAPI }).SpotitubeDesktop;
 type Item = { id: string; key: string; title: string; author_name: string };

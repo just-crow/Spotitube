@@ -1,5 +1,6 @@
 // Developer inspection helper. Launch with --remote-debugging-port=9334 only for local testing.
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 const tabs = await (await fetch('http://127.0.0.1:9334/json')).json();
 const ws = new WebSocket(tabs.find(t => t.type === 'page').webSocketDebuggerUrl);
 await new Promise(r => ws.onopen = r);
@@ -16,7 +17,13 @@ async function ev(expression) {
   if (result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails)); return result.result?.value;
 }
 try {
-  if (process.argv[2] === 'transition') {
+  if (['library-save', 'library-compare'].includes(process.argv[2])) {
+    const library = await ev('Object.fromEntries(["videos","spotitube-playlists","likes"].map(k=>[k,localStorage.getItem(k)||"[]"]))');
+    const snapshot = Object.fromEntries(Object.entries(library).map(([key, value]) => [key, { count: JSON.parse(value).length, sha256: crypto.createHash('sha256').update(value).digest('hex') }]));
+    if (process.argv[2] === 'library-save') fs.writeFileSync(process.argv[3], JSON.stringify(snapshot));
+    else if (JSON.stringify(snapshot) !== fs.readFileSync(process.argv[3], 'utf8')) throw new Error('Library changed across update');
+    console.log({ preserved: process.argv[2] === 'library-compare', counts: Object.fromEntries(Object.entries(snapshot).map(([k,v])=>[k,v.count])) });
+  } else if (process.argv[2] === 'transition') {
     const prototype = await call('Runtime.evaluate', { expression: 'HTMLAudioElement.prototype' });
     const objects = await call('Runtime.queryObjects', { prototypeObjectId: prototype.result.objectId });
     await call('Runtime.callFunctionOn', { objectId: objects.objects.objectId, functionDeclaration: 'function(){this.previous=this.find(a=>!a.paused&&a.currentTime>0)}' });

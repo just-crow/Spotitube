@@ -5,13 +5,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Catalog, validId } from './catalog.mjs';
 import { Downloads } from './downloads.mjs';
 import { createMediaServer } from './media-server.mjs';
+import electronUpdater from 'electron-updater';
+import { DesktopUpdater } from './updater.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 protocol.registerSchemesAsPrivileged([{ scheme: 'spotitube', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true, corsEnabled: true } }]);
 if (process.env.SPOTITUBE_DESKTOP_TEST_PROFILE) app.setPath('userData', path.resolve(process.env.SPOTITUBE_DESKTOP_TEST_PROFILE));
 const locked = app.requestSingleInstanceLock();
 if (!locked) app.quit();
-let window, catalog, downloads, mediaServer;
+let window, catalog, downloads, mediaServer, updates;
 let playbackResolution, preloadResolution;
 const tools = app.isPackaged ? path.join(process.resourcesPath, 'tools') : path.join(here, 'tools');
 const web = path.join(here, 'web');
@@ -19,6 +21,7 @@ const contentTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': '
 const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https: wss:; media-src 'self' http://127.0.0.1:* blob:; font-src 'self' https: data:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'";
 
 if (locked) app.whenReady().then(async () => {
+  updates = new DesktopUpdater(electronUpdater.autoUpdater, { packaged: app.isPackaged && !process.env.SPOTITUBE_DESKTOP_TEST_PROFILE, version: app.getVersion(), changed: state => { if (window && !window.isDestroyed()) window.webContents.send('desktop-update', state); } });
   catalog = new Catalog(tools, { fetcher: (url, init) => net.fetch(url, init) });
   downloads = new Downloads(path.join(app.getPath('userData'), 'downloads'), catalog, jobs => { if (window && !window.isDestroyed()) window.webContents.send('downloads', jobs); }, (url, init) => net.fetch(url, init));
   mediaServer = await createMediaServer(catalog, downloads, (url, init) => net.fetch(url, init));
@@ -36,7 +39,7 @@ if (locked) app.whenReady().then(async () => {
   ipcMain.handle('spotitube', async (event, method, args) => {
     if (event.sender !== window?.webContents || event.senderFrame !== window.webContents.mainFrame || !event.senderFrame.url.startsWith('spotitube://app/')) throw new Error('Untrusted caller.');
     switch (method) {
-      case 'bootstrap': return { version: app.getVersion() + ' · Windows', jobs: downloads.snapshot() };
+      case 'bootstrap': return { version: app.getVersion() + ' · Windows', jobs: downloads.snapshot(), update: updates.snapshot() };
       case 'resolve': {
         if (!validId(args.id)) throw new Error('Invalid video.');
         let signal;
@@ -59,23 +62,9 @@ if (locked) app.whenReady().then(async () => {
       case 'deleteDownload': downloads.remove(args.id); return true;
       case 'cancelDownload': downloads.cancel(args.id); return true;
       case 'retryDownload': downloads.retry(args.id); return true;
-      case 'checkUpdates': {
-        try {
-          const response = await fetch('https://api.github.com/repos/just-crow/Spotitube/releases?per_page=30', { headers: { 'User-Agent': 'Spotitube-desktop' }, signal: AbortSignal.timeout(12000) });
-          if (!response.ok) throw new Error('Release service unavailable');
-          const releases = await response.json();
-          const release = releases.find(item => !item.prerelease && !item.draft && /^desktop-v\d+\.\d+\.\d+$/.test(item.tag_name));
-          const latest = release?.tag_name.replace('desktop-v', '');
-          const compare = (a, b) => { const left = a.split('.').map(Number), right = b.split('.').map(Number); for (let n = 0; n < 3; n++) if (left[n] !== right[n]) return left[n] - right[n]; return 0; };
-          const newer = latest && compare(latest, app.getVersion()) > 0;
-          const result = await dialog.showMessageBox(window, { type: 'info', title: 'Spotitube desktop updates', message: newer ? `Spotitube ${latest} is available` : 'You have the latest desktop version', detail: `Installed version: ${app.getVersion()}. Your library stays on this computer when you update.`, buttons: newer ? ['Open download', 'Later'] : ['Close'], defaultId: newer ? 1 : 0, cancelId: newer ? 1 : 0 });
-          if (newer && result.response === 0 && /^https:\/\/github\.com\/just-crow\/Spotitube\/releases\//.test(release.html_url)) await shell.openExternal(release.html_url);
-        } catch {
-          const result = await dialog.showMessageBox(window, { type: 'warning', title: 'Spotitube desktop updates', message: 'Could not check for updates', detail: 'Check your internet connection or open the releases page to check manually.', buttons: ['Open releases', 'Close'], defaultId: 1, cancelId: 1 });
-          if (result.response === 0) await shell.openExternal('https://github.com/just-crow/Spotitube/releases');
-        }
-        return true;
-      }
+      case 'checkUpdates': return updates.check();
+      case 'updateState': return updates.snapshot();
+      case 'installUpdate': return updates.install();
       default: throw new Error('Unsupported operation.');
     }
   });
@@ -86,14 +75,20 @@ if (locked) app.whenReady().then(async () => {
   window.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false));
   window.webContents.on('before-input-event', (event, input) => { if (input.control && ['+', '-', '=', '0'].includes(input.key)) event.preventDefault(); });
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: 'Spotitube', submenu: [{ label: 'Check for updates', click: () => window.webContents.executeJavaScript('window.SpotitubeDesktop.invoke("checkUpdates")') }, { type: 'separator' }, { role: 'quit' }] },
+    { label: 'Spotitube', submenu: [{ label: 'Check for updates', click: async () => {
+      await updates.check();
+      const state = updates.snapshot();
+      if (state.status === 'ready') { const result = await dialog.showMessageBox(window, { message: `Spotitube ${state.availableVersion} is ready`, detail: 'Restart now to install, or close the app later to apply the update.', buttons: ['Restart and install', 'Later'], cancelId: 1 }); if (!result.response) updates.install(); }
+      else await dialog.showMessageBox(window, { message: state.status === 'downloading' ? 'Downloading update in the background' : state.status === 'up-to-date' ? 'Spotitube is up to date' : state.error || 'Checking for updates', detail: 'See Settings → App updates for progress.' });
+    } }, { type: 'separator' }, { role: 'quit' }] },
     { role: 'editMenu' }, { label: 'View', submenu: [{ role: 'togglefullscreen' }, { role: 'toggleDevTools' }] },
   ]));
   window.once('ready-to-show', () => window.show());
   await window.loadURL('spotitube://app/');
   await window.webContents.setVisualZoomLevelLimits(1, 1);
   downloads.pump();
+  updates.start();
 });
 app.on('second-instance', () => { if (window?.isMinimized()) window.restore(); window?.focus(); });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { playbackResolution?.abort(); preloadResolution?.abort(); downloads?.close(); catalog?.close(); mediaServer?.close(); });
+app.on('before-quit', () => { updates?.close(); playbackResolution?.abort(); preloadResolution?.abort(); downloads?.close(); catalog?.close(); mediaServer?.close(); });

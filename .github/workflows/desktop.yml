@@ -23,5 +23,8 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: Spotitube-Windows
-          path: desktop-release/Spotitube-Setup-*.exe
+          path: |
+            desktop-release/Spotitube-Setup-*.exe
+            desktop-release/Spotitube-Setup-*.exe.blockmap
+            desktop-release/latest.yml
           if-no-files-found: error

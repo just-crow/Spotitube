@@ -1,5 +1,7 @@
 import { nativeAppVersion } from './lib/platform';
 import { nativeCheckUpdates } from './lib/platform';
+import { isDesktop } from './lib/platform';
+import { DesktopUpdates } from './components/DesktopUpdates';
 import { nativeDownloadQueue, nativeCancelDownload, nativeRetryDownload, type DownloadJob } from './lib/platform';
 import React, { useEffect, useRef, useState } from 'react';
 import type { Entry, Playlist, PlaylistRef, Video } from './types';
@@ -1194,6 +1196,7 @@ export default function App() {
       </div>}
       {actionMessage && <div className="action-toast" role="status">{actionMessage}</div>}
       <header>
+        {isDesktop && <DesktopUpdates compact />}
         <button className="brand" onClick={() => navigate('Home')}>
           <span>◉</span> Spotitube
         </button>
@@ -1714,7 +1717,7 @@ export default function App() {
                 const next = { ...items }; delete next[id]; return next;
               })}>Unblock</button></div>)}
               <h3>App updates</h3>
-              {isNative && <><p>Installed version {nativeAppVersion()}</p><button className="primary" onClick={nativeCheckUpdates}>Check for updates</button></>}
+              {isDesktop ? <DesktopUpdates /> : isNative && <><p>Installed version {nativeAppVersion()}</p><button className="primary" onClick={nativeCheckUpdates}>Check for updates</button></>}
             </section>
           ) : page === 'Sync' ? (
             <div className="sync-page">
