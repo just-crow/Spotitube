@@ -11,7 +11,7 @@
     "desktop:prepare": "node scripts/prepare-desktop.mjs",
     "desktop:web": "vite build --base ./ --outDir desktop/web",
     "desktop:dev": "npm run desktop:web && electron .",
-    "desktop:build": "npm run typecheck && npm run desktop:prepare && npm run desktop:web && electron-builder --config desktop/electron-builder.cjs --win",
+    "desktop:build": "npm run typecheck && npm run desktop:prepare && npm run desktop:web && electron-builder --config desktop/electron-builder.cjs --win --publish never",
     "desktop:test": "node --test desktop/tests/*.test.mjs"
   },
   "keywords": [],
