@@ -1,16 +1,21 @@
 {
   "name": "spotitube",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Spotitube music player for Windows and Android",
+  "main": "desktop/main.mjs",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "desktop:prepare": "node scripts/prepare-desktop.mjs",
+    "desktop:web": "vite build --base ./ --outDir desktop/web",
+    "desktop:dev": "npm run desktop:web && electron .",
+    "desktop:build": "npm run typecheck && npm run desktop:prepare && npm run desktop:web && electron-builder --config desktop/electron-builder.cjs --win",
+    "desktop:test": "node --test desktop/tests/*.test.mjs"
   },
   "keywords": [],
-  "author": "",
+  "author": "Spotitube",
   "license": "ISC",
   "type": "module",
   "dependencies": {
@@ -22,6 +27,8 @@
   },
   "devDependencies": {
     "@types/react": "^19.3.0",
-    "@types/react-dom": "^19.3.0"
+    "@types/react-dom": "^19.3.0",
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
   }
 }

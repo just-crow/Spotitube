@@ -10,3 +10,7 @@ android/app/src/main/assets/web/
 *.jks
 *.keystore
 *.hprof
+desktop/tools/
+desktop/web/
+desktop-release/
+desktop-test-profile/

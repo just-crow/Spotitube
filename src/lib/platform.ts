@@ -1,4 +1,5 @@
 import type { Entry, NativeState, Video } from '../types';
+import { createDesktopBridge, desktopAPI } from './desktop';
 
 /**
  * Dual native bridge.
@@ -17,7 +18,7 @@ type AndroidBridge = {
   search(query: string, request: number, musicOnly: boolean): void;
   radio(id: string, request: number, musicOnly: boolean): void;
   importPlaylist(id: string): void;
-  metadata(id: string): string;
+  metadata(id: string): string | Promise<string>;
   download(id: string, title: string, artist: string, thumb: string): void;
   deleteDownload(id: string): void;
   downloads(): string;
@@ -37,17 +38,20 @@ type IosMessage = {
   args?: Record<string, unknown>;
 };
 
-const androidBridge = (window as unknown as { SpotitubeAndroid?: AndroidBridge }).SpotitubeAndroid;
+const androidBridge: AndroidBridge | undefined = desktopAPI ? createDesktopBridge(desktopAPI)
+  : (window as unknown as { SpotitubeAndroid?: AndroidBridge }).SpotitubeAndroid;
 
 const iosBridge: { postMessage(message: IosMessage): void } | undefined =
   (window as unknown as { webkit?: { messageHandlers?: { spotitube?: { postMessage(m: IosMessage): void } } } })
     .webkit?.messageHandlers?.spotitube;
 
-export const isAndroidNative = Boolean(androidBridge);
+export const isDesktop = Boolean(desktopAPI);
+export const isAndroidNative = Boolean(androidBridge) && !isDesktop;
 export const isIOS = Boolean(iosBridge);
-export const isNative = isAndroidNative || isIOS;
+export const isNative = Boolean(androidBridge) || isIOS;
 
-if (androidBridge) document.documentElement.classList.add('android-app');
+if (isAndroidNative) document.documentElement.classList.add('android-app');
+if (isDesktop) document.documentElement.classList.add('desktop-app');
 if (iosBridge) document.documentElement.classList.add('ios-app');
 
 export type SearchEvent = { request: number; videos: Video[] | null };
@@ -292,7 +296,7 @@ export function nativeArtist(channelUrl: string, request: number): void {
 
 export async function fetchMetadata(id: string): Promise<Video> {
   if (androidBridge) {
-    const raw = androidBridge.metadata(id) || '{}';
+    const raw = await androidBridge.metadata(id) || '{}';
     const metadata = JSON.parse(raw) as Partial<Video>;
     if (!metadata.title) throw new Error('YouTube could not load this video.');
     return {

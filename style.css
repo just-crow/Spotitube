@@ -369,6 +369,10 @@ html.android-app { touch-action:pan-x pan-y; }
 .setting-row select { max-width:50%; font-size:14px; }
 .setting-row input[type=checkbox] { flex:none; width:22px; height:22px; accent-color:var(--green); }
 .setting-row input[type=range] { width:45%; min-width:0; }
+.desktop-app header { flex-wrap:wrap; gap:12px 20px; }
+.desktop-app .search-form { flex:1 1 340px; min-width:0; }
+.desktop-app .search-form input { width:0; min-width:100px; }
+.desktop-app main { min-width:0; }
 .track-more { position:relative; min-width:0; }
 .track-more summary { list-style:none; cursor:pointer; min-height:44px; display:grid; place-items:center; }
 .track-more summary::-webkit-details-marker { display:none; }

@@ -1,0 +1,27 @@
+name: Windows desktop
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['desktop/**', 'src/**', 'style.css', 'index.html', 'package*.json', 'scripts/prepare-desktop.mjs', '.github/workflows/desktop.yml']
+  pull_request:
+    paths: ['desktop/**', 'src/**', 'style.css', 'index.html', 'package*.json', 'scripts/prepare-desktop.mjs', '.github/workflows/desktop.yml']
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run desktop:test
+      - run: npm run desktop:build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Spotitube-Windows
+          path: desktop-release/Spotitube-Setup-*.exe
+          if-no-files-found: error
