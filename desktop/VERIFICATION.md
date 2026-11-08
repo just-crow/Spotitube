@@ -1,5 +1,20 @@
 # Windows desktop 1.0.0 verification
 
+## Desktop 1.0.4 automatic updates
+
+Verified a real update on the installed Windows application, rather than only simulated updater events:
+
+- Gracefully closed installed 1.0.0 and installed the updater bootstrap. Existing Local Storage files were byte-for-byte unchanged before the first new launch.
+- Published verified installers first, then the HTTPS desktop feed. GitHub's installer SHA-256 matched the local verified build; the feed carries the build's SHA-512 and exact file length.
+- The installed app downloaded 1.0.3 and 1.0.4 through electron-updater, reporting real percentage/byte progress in Settings. Downloaded cached installers matched the verified local release files. An initial pre-publication 404 remained a retryable error and recovered after the feed was published.
+- Exercised **Restart and install**. Caught Windows shortcut-broker relaunch failing in the first attempt; the 1.0.4 installer now directly launches the installed executable only when a silent forced restart is requested.
+- The actual 1.0.3 → 1.0.4 in-app update installed successfully and automatically reopened the visible application. The installed executable reports 1.0.4.0; the running bridge reports 1.0.4 and the feed check reports **up-to-date**.
+- Compared hashes of the saved-video, playlist, and likes records across the upgrade: all 208 saved videos and both playlists were unchanged.
+- Closed the inspection instance and reopened the installed app normally, without debugging or audio-muting flags.
+- Thirteen automated tests, TypeScript checking, the Windows production build, and GitHub's Windows build job pass.
+
+Automatic checks run after launch and every six hours. Downloads do not automatically restart playback; a ready update applies on normal quit or by the user's Restart and install action. The install-on-normal-quit flag is covered by focused tests; the live installer transition above used the explicit restart action. Windows installers remain unsigned, with SHA-512 download verification and an HTTPS repository-controlled feed. Android's update manifest is unchanged.
+
 ## Desktop 1.0.1 loading fix
 
 Reproduced immediate HTTP 403 responses for freshly extracted stream URLs. The **same URL** returned HTTP 206 after a 3.2-second wait: 32 KiB in 54 ms, 256 KiB in 134 ms. The resolver now waits 3.1 seconds and probes readiness before handing a URL to the player; it retries readiness on the same address rather than immediately creating a new unready address. Extraction is bounded to 20 seconds. Actual audio requests are capped at 512 KiB, with a 12-second inactivity timeout refreshed as data arrives. Switching selections cancels obsolete preparation. Prepared next-song playback reuses the same audio element and audio graph.

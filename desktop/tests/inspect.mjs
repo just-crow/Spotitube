@@ -17,7 +17,13 @@ async function ev(expression) {
   if (result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails)); return result.result?.value;
 }
 try {
-  if (['library-save', 'library-compare'].includes(process.argv[2])) {
+  if (process.argv[2] === 'install-update') {
+    const state = await ev('window.SpotitubeDesktop.invoke("updateState")');
+    if (state.status !== 'ready') throw new Error('No verified update is ready');
+    ws.send(JSON.stringify({ id: ++id, method: 'Runtime.evaluate', params: { expression: 'void window.SpotitubeDesktop.invoke("installUpdate")' } }));
+    await new Promise(r => setTimeout(r, 300));
+    console.log('Requested installation of verified update ' + state.availableVersion);
+  } else if (['library-save', 'library-compare'].includes(process.argv[2])) {
     const library = await ev('Object.fromEntries(["videos","spotitube-playlists","likes"].map(k=>[k,localStorage.getItem(k)||"[]"]))');
     const snapshot = Object.fromEntries(Object.entries(library).map(([key, value]) => [key, { count: JSON.parse(value).length, sha256: crypto.createHash('sha256').update(value).digest('hex') }]));
     if (process.argv[2] === 'library-save') fs.writeFileSync(process.argv[3], JSON.stringify(snapshot));
