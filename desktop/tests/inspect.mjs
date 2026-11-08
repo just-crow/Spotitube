@@ -16,7 +16,37 @@ async function ev(expression) {
   if (result.exceptionDetails) throw Error(JSON.stringify(result.exceptionDetails)); return result.result?.value;
 }
 try {
-  if (process.argv[2] === 'monitor') {
+  if (process.argv[2] === 'transition') {
+    const prototype = await call('Runtime.evaluate', { expression: 'HTMLAudioElement.prototype' });
+    const objects = await call('Runtime.queryObjects', { prototypeObjectId: prototype.result.objectId });
+    await call('Runtime.callFunctionOn', { objectId: objects.objects.objectId, functionDeclaration: 'function(){this.previous=this.find(a=>!a.paused&&a.currentTime>0)}' });
+    const start = Date.now();
+    await ev('[...document.querySelectorAll(".controls button")].find(b=>b.getAttribute("aria-label")==="Next track").click()');
+    let result;
+    do {
+      await new Promise(r => setTimeout(r, 25));
+      result = (await call('Runtime.callFunctionOn', { objectId: objects.objects.objectId, functionDeclaration: 'function(){const a=this.find(a=>a!==this.previous&&!a.paused&&a.currentTime>0);return {playing:!!a,time:a?.currentTime}}', returnByValue: true })).result.value;
+    } while (!result.playing && Date.now() - start < 15000);
+    console.log({ transitionMs: Date.now() - start, ...result });
+  } else if (process.argv[2] === 'startup') {
+    const prototype = await call('Runtime.evaluate', { expression: 'HTMLAudioElement.prototype' });
+    const objects = await call('Runtime.queryObjects', { prototypeObjectId: prototype.result.objectId });
+    for (const videoId of process.argv.slice(3)) {
+      await ev('[...document.querySelectorAll("nav button")].find(b=>b.textContent==="Home").click()');
+      await ev('document.querySelector("input[placeholder^=Paste]").focus()');
+      await call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'a', code: 'KeyA', modifiers: 2, windowsVirtualKeyCode: 65 });
+      await call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'a', code: 'KeyA', modifiers: 2, windowsVirtualKeyCode: 65 });
+      const start = Date.now();
+      await call('Input.insertText', { text: 'https://www.youtube.com/watch?v=' + videoId });
+      await ev('document.querySelector("input[placeholder^=Paste]").form.requestSubmit()');
+      let result;
+      do {
+        await new Promise(r => setTimeout(r, 100));
+        result = (await call('Runtime.callFunctionOn', { objectId: objects.objects.objectId, functionDeclaration: `function(){const a=this.find(a=>a.src.includes(${JSON.stringify(videoId)}));return a?{playing:!a.paused&&a.currentTime>0,time:a.currentTime,error:a.error?.code,buffered:a.buffered.length?a.buffered.end(a.buffered.length-1):0}:{};}`, returnByValue: true })).result.value;
+      } while (!result.playing && Date.now() - start < 45000);
+      console.log({ id: videoId, startupMs: Date.now() - start, ...result });
+    }
+  } else if (process.argv[2] === 'monitor') {
     await call('Log.enable'); await call('Media.enable');
     await ev('(async()=>{window.testAudio=new Audio();window.testAudio.crossOrigin="anonymous";window.testAudio.src=(await window.SpotitubeDesktop.invoke("resolve",{id:"dQw4w9WgXcQ"})).url;window.testAudio.volume=0;window.testAudio.play().catch(()=>{})})()');
     await new Promise(r => setTimeout(r, 8000));

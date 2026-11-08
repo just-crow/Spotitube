@@ -1,5 +1,5 @@
 const { contextBridge, ipcRenderer } = require('electron');
-const methods = new Set(['bootstrap', 'resolve', 'metadata', 'search', 'radio', 'playlist', 'artist', 'download', 'deleteDownload', 'cancelDownload', 'retryDownload', 'checkUpdates']);
+const methods = new Set(['bootstrap', 'resolve', 'cancelPreload', 'metadata', 'search', 'radio', 'playlist', 'artist', 'download', 'deleteDownload', 'cancelDownload', 'retryDownload', 'checkUpdates']);
 contextBridge.exposeInMainWorld('SpotitubeDesktop', {
   invoke: (method, args = {}) => {
     if (!methods.has(method)) return Promise.reject(new Error('Unsupported operation.'));

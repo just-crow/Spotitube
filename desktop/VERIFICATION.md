@@ -1,5 +1,21 @@
 # Windows desktop 1.0.0 verification
 
+## Desktop 1.0.1 loading fix
+
+Reproduced immediate HTTP 403 responses for freshly extracted stream URLs. The **same URL** returned HTTP 206 after a 3.2-second wait: 32 KiB in 54 ms, 256 KiB in 134 ms. The resolver now waits 3.1 seconds and probes readiness before handing a URL to the player; it retries readiness on the same address rather than immediately creating a new unready address. Extraction is bounded to 20 seconds. Actual audio requests are capped at 512 KiB, with a 12-second inactivity timeout refreshed as data arrives. Switching selections cancels obsolete preparation. Prepared next-song playback reuses the same audio element and audio graph.
+
+Measured through the real UI, with a fresh desktop profile and live YouTube streams:
+
+| Song | Cold time to decoded playback |
+| --- | ---: |
+| Rick Astley — Never Gonna Give You Up | 9,358 ms |
+| Daft Punk — One More Time | 8,972 ms |
+| Foo Fighters — Everlong | 9,281 ms |
+
+All three played successfully without recovery attempts. The final packaged 1.0.1 application also passed a fresh-profile cold start in 10,815 ms with a non-silent decoded audio signal. A prepared next-song transition took 30 ms and produced a non-silent decoded audio signal. These are local measurements, not a promise of identical timings on other networks. First-time extraction still costs several seconds. Eleven focused automated tests pass, including stream readiness, canceled preparation, rejected-stream cache protection, bounded online ranges, and reuse of the prepared audio element. The phone playback implementation is unchanged.
+
+## Original desktop checks
+
 Verified locally on Windows x64, November 8, 2026:
 
 - TypeScript check and production asset build pass.

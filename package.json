@@ -1,6 +1,6 @@
 {
   "name": "spotitube",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Spotitube music player for Windows and Android",
   "main": "desktop/main.mjs",
   "scripts": {

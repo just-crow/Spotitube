@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import path from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 export const validId = id => typeof id === 'string' && /^[\w-]{11}$/.test(id);
 export const video = item => ({
@@ -9,7 +10,7 @@ export const video = item => ({
 });
 
 export class Catalog {
-  constructor(tools) { this.tools = tools; this.streams = new Map(); this.pending = new Map(); this.children = new Set(); this.details = new Map(); }
+  constructor(tools, { fetcher = fetch, activationDelayMs = 3100 } = {}) { this.tools = tools; this.streams = new Map(); this.pending = new Map(); this.children = new Set(); this.details = new Map(); this.fetcher = fetcher; this.activationDelayMs = activationDelayMs; }
   run(args, { signal, timeout = 65000 } = {}) {
     return new Promise((resolve, reject) => {
       const child = execFile(path.join(this.tools, 'yt-dlp.exe'), [
@@ -69,10 +70,27 @@ export class Catalog {
     const cached = this.streams.get(id);
     if (cached && cached.until > Date.now()) return cached;
     if (!refresh && !signal && this.pending.has(id)) return this.pending.get(id);
-    const promise = this.run(['--no-playlist', '-f', 'bestaudio[protocol=https]/bestaudio', '--dump-single-json', '--', `https://www.youtube.com/watch?v=${id}`], { signal }).then(data => {
+    const started = Date.now();
+    const promise = this.run(['--socket-timeout', '8', '--retries', '0', '--no-playlist', '-f', 'bestaudio[protocol=https]/bestaudio', '--dump-single-json', '--', `https://www.youtube.com/watch?v=${id}`], { signal, timeout: 20000 }).then(async data => {
       const url = new URL(data.url);
       if (url.protocol !== 'https:' || !(url.hostname.endsWith('.googlevideo.com'))) throw new Error('No supported audio stream is available.');
-      const stream = { url: url.href, headers: data.http_headers || {}, format: `${data.acodec || 'audio'} · ${Math.round(data.abr || 0)} kbps`, until: Date.now() + 5 * 60000 };
+      // YouTube requires a short wait before a newly generated media URL is usable.
+      // Retrying extraction immediately creates another not-yet-ready URL.
+      await delay(this.activationDelayMs, undefined, { signal });
+      let ready = false;
+      for (let attempt = 0; attempt < 2; attempt++) {
+        signal?.throwIfAborted();
+        const probeSignal = signal ? AbortSignal.any([signal, AbortSignal.timeout(5000)]) : AbortSignal.timeout(5000);
+        const response = await this.fetcher(url.href, { headers: { ...data.http_headers, Range: 'bytes=0-1023' }, signal: probeSignal });
+        ready = (response.status === 200 || response.status === 206) && /^(audio|video|application\/octet-stream)/i.test(response.headers.get('content-type') || '');
+        await response.body?.cancel();
+        if (ready) break;
+        if (attempt === 0 && [403, 429, 503].includes(response.status)) await delay(1200, undefined, { signal });
+        else throw new Error(`The audio server rejected this stream (${response.status}).`);
+      }
+      if (!ready) throw new Error('The audio stream is not ready. Please retry.');
+      signal?.throwIfAborted();
+      const stream = { url: url.href, headers: data.http_headers || {}, format: `${data.acodec || 'audio'} · ${Math.round(data.abr || 0)} kbps`, until: Math.min(Date.now() + 5 * 60000, (Number(url.searchParams.get('expire')) || Infinity) * 1000 - 60000), prepareMs: Date.now() - started };
       this.streams.set(id, stream);
       return stream;
     });

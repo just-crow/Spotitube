@@ -4,7 +4,7 @@ The Windows app uses the same interface as Android, with its own persistent libr
 
 ## Install
 
-Run `desktop-release/Spotitube-Setup-1.0.0.exe`. Installation is per-user and does not require administrator access. Windows may warn that this first release is unsigned. Libraries and downloads are stored in `%APPDATA%/Spotitube`, independently of Android and the browser. Existing app Sync can transfer a library between devices when configured; the installer does not import a browser's storage automatically.
+Run `desktop-release/Spotitube-Setup-1.0.1.exe`. Installation is per-user and does not require administrator access. Windows may warn that this release is unsigned. Libraries and downloads are stored in `%APPDATA%/Spotitube`, independently of Android and the browser. Existing app Sync can transfer a library between devices when configured; the installer does not import a browser's storage automatically.
 
 No Python installation, Android emulator, local web server, or API key is required. Internet access is required for YouTube searches and online playback. Previously downloaded songs play offline. Public/unlisted playlists can be imported by link; private account playlists and Google account editing are not added by the desktop port.
 

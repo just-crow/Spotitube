@@ -12,13 +12,14 @@ if (process.env.SPOTITUBE_DESKTOP_TEST_PROFILE) app.setPath('userData', path.res
 const locked = app.requestSingleInstanceLock();
 if (!locked) app.quit();
 let window, catalog, downloads, mediaServer;
+let playbackResolution, preloadResolution;
 const tools = app.isPackaged ? path.join(process.resourcesPath, 'tools') : path.join(here, 'tools');
 const web = path.join(here, 'web');
 const contentTypes = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.woff2': 'font/woff2' };
 const csp = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self' https: wss:; media-src 'self' http://127.0.0.1:* blob:; font-src 'self' https: data:; frame-src https://www.youtube.com https://www.youtube-nocookie.com; object-src 'none'; base-uri 'self'";
 
 if (locked) app.whenReady().then(async () => {
-  catalog = new Catalog(tools);
+  catalog = new Catalog(tools, { fetcher: (url, init) => net.fetch(url, init) });
   downloads = new Downloads(path.join(app.getPath('userData'), 'downloads'), catalog, jobs => { if (window && !window.isDestroyed()) window.webContents.send('downloads', jobs); }, (url, init) => net.fetch(url, init));
   mediaServer = await createMediaServer(catalog, downloads, (url, init) => net.fetch(url, init));
   protocol.handle('spotitube', async request => {
@@ -38,9 +39,17 @@ if (locked) app.whenReady().then(async () => {
       case 'bootstrap': return { version: app.getVersion() + ' · Windows', jobs: downloads.snapshot() };
       case 'resolve': {
         if (!validId(args.id)) throw new Error('Invalid video.');
-        const stream = downloads.local(args.id) ? { format: 'Offline audio', until: 'local' } : await catalog.resolve(args.id, Boolean(args.refresh));
-        return { url: `${mediaServer.url(args.id)}?v=${stream.until}`, format: stream.format };
+        let signal;
+        if (args.purpose === 'playback') {
+          playbackResolution?.abort(); preloadResolution?.abort();
+          playbackResolution = new AbortController(); signal = playbackResolution.signal;
+        } else if (args.purpose === 'preload') {
+          preloadResolution?.abort(); preloadResolution = new AbortController(); signal = preloadResolution.signal;
+        }
+        const stream = downloads.local(args.id) ? { format: 'Offline audio', until: 'local', prepareMs: 0 } : await catalog.resolve(args.id, Boolean(args.refresh), signal);
+        return { url: `${mediaServer.url(args.id)}?v=${stream.until}`, format: stream.format, prepareMs: stream.prepareMs };
       }
+      case 'cancelPreload': preloadResolution?.abort(); return true;
       case 'metadata': return catalog.metadata(args.id);
       case 'search': return catalog.search(args.query, args.musicOnly !== false);
       case 'radio': { const seed = await catalog.metadata(args.id); return (await catalog.search(seed.author_name + ' songs', args.musicOnly !== false)).filter(v => v.id !== args.id); }
@@ -87,4 +96,4 @@ if (locked) app.whenReady().then(async () => {
 });
 app.on('second-instance', () => { if (window?.isMinimized()) window.restore(); window?.focus(); });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => { downloads?.close(); catalog?.close(); mediaServer?.close(); });
+app.on('before-quit', () => { playbackResolution?.abort(); preloadResolution?.abort(); downloads?.close(); catalog?.close(); mediaServer?.close(); });

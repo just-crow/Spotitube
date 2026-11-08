@@ -56,3 +56,21 @@ test('automatic transition and repeat keep the selected queue occurrence', async
   assert.equal(JSON.parse(bridge.state()).key, 'duplicate'); assert.equal(JSON.parse(bridge.state()).time, 0);
   bridge.control('pause');
 });
+
+test('advancing reuses the prepared audio element without another resolution', async () => {
+  let resolutions = 0;
+  const bridge = createDesktopBridge({ invoke: async (method, args) => {
+    if (method === 'bootstrap') return { version: 'test', jobs: [] };
+    if (method !== 'resolve') return true;
+    resolutions++; return { url: 'https://example.invalid/' + args.id, format: 'test' };
+  }, onDownloads() {} });
+  bridge.playQueue(JSON.stringify([item('first'), item('second', 'bbbbbbbbbbb')]), 0, 0);
+  await tick();
+  const prepared = instances.at(-1); prepared.readyState = 4;
+  assert.equal(prepared.src, 'https://example.invalid/bbbbbbbbbbb');
+  const before = resolutions;
+  bridge.control('next'); await tick();
+  assert.equal(resolutions, before); assert.equal(prepared.paused, false);
+  assert.equal(JSON.parse(bridge.state()).key, 'second');
+  bridge.control('pause');
+});

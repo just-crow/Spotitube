@@ -30,10 +30,31 @@ export async function createMediaServer(catalog, downloads, fetcher) {
         if (req.method === 'HEAD') res.end(); else await pipeline(fs.createReadStream(file, { start, end }), res, { signal: controller.signal });
       } else {
         const stream = await catalog.resolve(match[1]);
-        const response = await fetcher(stream.url, { headers: { ...stream.headers, ...(req.headers.range ? { Range: req.headers.range } : {}) }, signal: controller.signal });
+        // A bounded HTTP response lets Chromium fetch/seek in small chunks rather
+        // than leaving a whole-track request open and potentially throttled.
+        const requested = req.headers.range;
+        const parsed = requested && /^bytes=(\d*)-(\d*)$/.exec(requested);
+        if (requested && !parsed) { res.writeHead(416, headers).end(); return; }
+        let range = requested || 'bytes=0-524287';
+        if (parsed?.[1]) {
+          const start = Number(parsed[1]);
+          range = `bytes=${start}-${Math.min(parsed[2] ? Number(parsed[2]) : Infinity, start + 524287)}`;
+        }
+        const timeout = setTimeout(() => controller.abort(), 12000);
+        timeout.unref?.();
+        let response;
+        try { response = await fetcher(stream.url, { headers: { ...stream.headers, Range: range }, signal: controller.signal }); }
+        catch (error) { clearTimeout(timeout); throw error; }
         for (const key of ['content-type', 'content-length', 'content-range', 'accept-ranges']) if (response.headers.has(key)) headers[key] = response.headers.get(key);
-        res.writeHead(response.status, headers);
-        if (req.method === 'HEAD' || !response.body) res.end(); else await pipeline(Readable.fromWeb(response.body), res, { signal: controller.signal });
+        try {
+          res.writeHead(response.status, headers);
+          if (req.method === 'HEAD' || !response.body) { await response.body?.cancel(); res.end(); }
+          else {
+            const body = Readable.fromWeb(response.body);
+            body.on('data', () => timeout.refresh());
+            await pipeline(body, res, { signal: controller.signal });
+          }
+        } finally { clearTimeout(timeout); }
       }
     } catch { if (!res.headersSent) res.writeHead(502, headers); res.end(); }
   });
